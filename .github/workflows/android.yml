@@ -1,32 +1,38 @@
-name: Build InviZible Pro
+name: Build My Custom InviZible
 on:
-  workflow_dispatch: # 允许你点击按钮手动触发
+  workflow_dispatch: 
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: 检出代码
+      - name: 1. 检出代码 (包含所有子模块)
         uses: actions/checkout@v4
         with:
-          submodules: 'recursive' # 关键：必须拉取 Tor/DNSCrypt 等子模块
+          submodules: 'recursive'
+          fetch-depth: 0
 
-      - name: 设置 JDK 17
+      - name: 2. 强制锁定 JDK 17 (防止自动升级到 21+)
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
           cache: gradle
 
-      - name: 授予执行权限
-        run: chmod +x gradlew
+      - name: 3. 修复 NDK 环境 (InviZible 编译核心)
+        run: |
+          # 确保安装项目所需的特定 NDK 版本
+          echo "y" | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "ndk;25.2.9519653"
 
-      - name: 编译 Debug APK
-        # InviZible 包含本地代码，编译可能需要 10 分钟以上
-        run: ./gradlew assembleDebug --stacktrace
+      - name: 4. 使用 Gradle Wrapper 构建 (关键)
+        run: |
+          chmod +x gradlew
+          # 使用 --no-daemon 避免内存泄漏，同时跳过配置缓存以防冲突
+          ./gradlew assembleDebug --no-daemon --no-configuration-cache
 
-      - name: 上传结果
+      - name: 5. 提取 APK
+        if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: InviZible-Build-APK
+          name: My-InviZible-App
           path: app/build/outputs/apk/debug/*.apk
