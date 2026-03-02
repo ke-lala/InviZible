@@ -42,6 +42,17 @@ jobs:
       run: ./gradlew assembleDebug
 
     - name: Upload APK
+      uses: actions/upload-artifact@v4    # 此处已升级为v4
+      with:
+        name: app-debug-apk
+        path: app/build/outputs/apk/debug/app-debug.apk
+    - name: Grant execute permission for gradlew
+      run: chmod +x ./gradlew
+
+    - name: Build with Gradle
+      run: ./gradlew assembleDebug
+
+    - name: Upload APK
       uses: actions/upload-artifact@v3
       with:
         name: app-debug-apk
