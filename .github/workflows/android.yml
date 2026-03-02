@@ -6,7 +6,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: 1. 检出代码 (包含子模块)
+      - name: 1. 检出代码
         uses: actions/checkout@v4
         with:
           submodules: 'recursive'
@@ -19,27 +19,27 @@ jobs:
           distribution: 'temurin'
           cache: gradle
 
-      - name: 3. 强制开启 Jetifier (解决 Multidex 引用问题)
-        # 这步操作会修改项目配置，强制将旧版 Android 支持库转换为 AndroidX
+      - name: 3. 【核心修复】强制注入 Multidex 依赖
         run: |
+          # 向 tordnscrypt 模块的 build.gradle 强行插入 multidex 依赖项
+          # 我们在 dependencies 块的开头插入这行
+          sed -i '/dependencies {/a \    implementation "androidx.multidex:multidex:2.0.1"' tordnscrypt/build.gradle
+          
+          # 同时确保全局开启 AndroidX
           echo "android.useAndroidX=true" >> gradle.properties
           echo "android.enableJetifier=true" >> gradle.properties
-          echo "org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8" >> gradle.properties
 
-      - name: 4. 执行编译 (添加强制刷新参数)
+      - name: 4. 修复 NDK (InviZible 编译必须)
+        run: |
+          echo "y" | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "ndk;25.2.9519653"
+
+      - name: 5. 执行编译
         run: |
           chmod +x gradlew
-          # --refresh-dependencies 确保 MultiDex 库被下载
-          ./gradlew assembleDebug --refresh-dependencies -x lint -x test --no-daemon
+          # 使用 --no-daemon 确保内存稳定
+          ./gradlew :app:assembleDebug -x lint -x test --no-daemon
 
-      - name: 5. 提取 APK
-        if: success()
-        uses: actions/upload-artifact@v4
-        with:
-          name: My-InviZible-App
-          path: app/build/outputs/apk/debug/*.apk
-
-      - name: 5. 提取 APK
+      - name: 6. 提取 APK
         if: success()
         uses: actions/upload-artifact@v4
         with:
